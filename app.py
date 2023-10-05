@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import cv2
+import io
 from keras.models import load_model
 from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input
 from tensorflow.keras.preprocessing.image import img_to_array
@@ -73,32 +73,35 @@ def predict_caption(model, image, tokenizer, max_length):
 if uploaded_file is not None:
     # Convert the file to an opencv image.
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    opencv_image = cv2.imdecode(file_bytes, 1)
+    image = Image.open(io.BytesIO(file_bytes))
 
-    # print(opencv_image)
-    original_shape = opencv_image.shape
-    opencv_image = cv2.resize(opencv_image, (224,224))
-    image = img_to_array(opencv_image)
-    print(image.shape)
-    # reshape data for model
-    image = image.reshape((1, image.shape[0], image.shape[1], image.shape[2]))
+    # Resize the image to (224, 224)
+    resized_image = image.resize((224, 224))
 
-    # preprocess image for vgg
-    image = preprocess_input(image)
+    # Convert the resized image to a NumPy array
+    image_array = np.array(resized_image)
 
-    # extract features
-    feature = vgg_model.predict(image, verbose=0)
-    # predict from the trained model
-    predictied_value = predict_caption(model, feature, tokenizer, max_length)
+    # Reshape data for the model
+    image_array = image_array.reshape((1, image_array.shape[0], image_array.shape[1], image_array.shape[2]))
 
+    # Preprocess image for VGG
+    image_array = preprocess_input(image_array)
 
-    
-    opencv_image = cv2.resize(opencv_image,(360,360) )
-    # Now do something with the image! For exa
-    st.image(opencv_image, channels="BGR")
+    # Extract features
+    feature = vgg_model.predict(image_array, verbose=0)
 
+    # Predict from the trained model
+    predicted_value = predict_caption(model, feature, tokenizer, max_length)
+
+    # Resize the original image to (360, 360)
+    opencv_image = image.resize((360, 360))
+
+    # Display the resized image
+    st.image(opencv_image, channels="RGB")
+
+    # Display the predicted caption
     st.header("Predicted caption is")
-    st.title(" ".join(predictied_value.split()[1:-1]))
+    st.title(" ".join(predicted_value.split()[1:-1]))
 
     
     # # Create two columns for image and text
@@ -112,5 +115,4 @@ if uploaded_file is not None:
     # with col3:
     #     st.header("Predicted caption is")
     #     st.write(" ".join(predictied_value.split()[1:-1]))
-
 
